@@ -16,6 +16,8 @@
 from __future__ import print_function
 
 import os.path
+from datetime import datetime
+from threading import Thread
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -24,14 +26,15 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly',
+'https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
-SAMPLE_SPREADSHEET_ID = '1bTu9VOY2n-gD3ztjfsf2LX2JSrBFXyJ_F1sJxS-JC6E'
-SAMPLE_RANGE_NAME = 'Sheet1!A2:E'
+SPREADSHEET_ID = '1bTu9VOY2n-gD3ztjfsf2LX2JSrBFXyJ_F1sJxS-JC6E'
+RANGE_NAME = "RawData!A1:B1"
 
 
-def main():
+def main(tag, scantime):
     """Shows basic usage of the Sheets API.
     Prints values from a sample spreadsheet.
     """
@@ -58,22 +61,34 @@ def main():
 
         # Call the Sheets API
         sheet = service.spreadsheets()
-        result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-                                    range=SAMPLE_RANGE_NAME).execute()
+        result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
+                                    range=RANGE_NAME).execute()
         values = result.get('values', [])
 
-        if not values:
-            print('No data found.')
-            return
-
-        print('Name, Major:')
-        for row in values:
-            # Print columns A and E, which correspond to indices 0 and 4.
-            print('%s, %s' % (row[0], row[4]))
+        # Add values
+        newvalues = {
+            "majorDimension": "DIMENSION_UNSPECIFIED",
+            "range": RANGE_NAME,
+            "values": 
+            [
+                [scantime, tag]
+            ]
+        }
+        service.spreadsheets().values().append(spreadsheetId=SPREADSHEET_ID,
+                                    range=RANGE_NAME,
+                                    valueInputOption='USER_ENTERED',
+                                    includeValuesInResponse=False,
+                                    body=newvalues
+                                    ).execute()
+        #print("Done!")
     except HttpError as err:
         print(err)
 
-
-if __name__ == '__main__':
-    main()
-# [END sheets_quickstart]
+while True:
+    newtag = str(input("Tag:"))
+    if newtag == "exit":
+        exit()
+    newtime = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+    if __name__ == '__main__':
+        thread = Thread(target = main, args = (newtag, newtime))
+        thread.start()
